@@ -1,0 +1,48 @@
+{
+  "name": "@cmdless/sdk",
+  "description": "Build cross platform desktop apps using React for the frontend, wrapping functionality inside of an MCP server.",
+  "version": "0.0.2",
+  "license": "MIT",
+  "type": "module",
+  "author": {
+    "name": "Fluttershy",
+    "url": "https://github.com/Fluttershy"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cmdless/platform.git"
+  },
+  "bin": {
+    "sdk": "./dist/sdk.js"
+  },
+  "exports": {
+    "./main": {
+      "types": "./dist/main/index.d.ts",
+      "import": "./dist/main/index.js"
+    },
+    "./renderer": {
+      "types": "./dist/renderer/index.d.ts",
+      "import": "./dist/renderer/index.js"
+    },
+    "./shared": {
+      "types": "./dist/shared/index.d.ts",
+      "import": "./dist/shared/index.js"
+    }
+  },
+  "scripts": {
+    "prebuild": "rimraf dist node_modules/.tmp",
+    "build": "tsc -b && node scripts/build-preload.mjs",
+    "test": "node --test --import tsx src/**/*.test.ts"
+  },
+  "dependencies": {
+    "@electron/get": "^5.0.0",
+    "commander": "15.0.0",
+    "extract-zip": "^2.0.1",
+    "zod": "4.4.3",
+    "@modelcontextprotocol/sdk": "1.29.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.9",
+    "electron": "40.10.5"
+  }
+}
