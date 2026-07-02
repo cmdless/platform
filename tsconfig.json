@@ -12,6 +12,9 @@
     },
     {
       "path": "./apps/template"
+    },
+    {
+      "path": "./apps/gh"
     }
   ]
 }

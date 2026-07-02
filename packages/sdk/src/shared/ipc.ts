@@ -1,10 +1,26 @@
 import { CmdlessConfig } from "./protocol.js";
 
+export interface ProcessSpawnRequest {
+  command: string;
+  args?: string[];
+  env?: Record<string, string>;
+}
+
+export interface ProcessSpawnResponse {
+  stdout: string;
+  stderr: string;
+  exit: number;
+}
+
 export interface IpcApi {
   'renderer/create': {
     request: { config: CmdlessConfig; };
     response: { url: string; };
-  }
+  };
+  'process/spawn': {
+    request: ProcessSpawnRequest;
+    response: ProcessSpawnResponse;
+  };
 }
 
 export type CreateRendererRequest = IpcApi['renderer/create']['request'];

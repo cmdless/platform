@@ -1,0 +1,51 @@
+{
+  "name": "gh",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "bin": {
+    "gh": "./dist/main/bin.js"
+  },
+  "exports": {
+    "./app": {
+      "types": "./dist/main/app.d.ts",
+      "import": "./dist/main/app.js"
+    },
+    "./shared": {
+      "types": "./dist/shared/index.d.ts",
+      "import": "./dist/shared/index.js"
+    }
+  },
+  "cmdless": {
+    "main": "./dist/main/bin.js",
+    "mainDev": "./src/main/bin.ts",
+    "renderer": "./dist/renderer/index.html"
+  },
+  "scripts": {
+    "dev": "npm run build && node scripts/dev.mjs",
+    "prebuild": "rimraf dist node_modules/.tmp",
+    "build": "tsc -b && vite build",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@cmdless/ui": "*",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "@cmdless/sdk": "*"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^24.13.2",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.2",
+    "eslint": "^10.5.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.3",
+    "globals": "^17.6.0",
+    "typescript": "~6.0.2",
+    "typescript-eslint": "^8.61.0",
+    "vite": "^8.1.0"
+  }
+}

@@ -7,6 +7,7 @@ import {
   type IpcApi,
   type IpcHandler,
 } from "../shared/index.js";
+import { spawnProcess } from "./process.js";
 import { getOrCreateRendererProcess } from "./renderer-process.js";
 
 function getElectronHostName() {
@@ -29,6 +30,10 @@ export function handle<K extends keyof IpcApi>(
 export function setupElectronIpc() {
   handle("renderer/create", async (_, request) => {
     return await getOrCreateRendererProcess(request.config);
+  });
+
+  handle("process/spawn", async (_, request) => {
+    return await spawnProcess(request);
   });
 }
 

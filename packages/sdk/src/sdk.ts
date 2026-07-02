@@ -2,7 +2,7 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import { cp, mkdir, mkdtemp, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { basename, dirname, join, resolve } from "node:path";
+import { basename, dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Command } from "commander";
 import packageJson from "../package.json" with { type: "json" };
@@ -103,6 +103,31 @@ async function rewriteTemplatePackageJson(destinationPath: string, packageName: 
   await writeFile(packageJsonPath, `${JSON.stringify(appPackageJson, null, 2)}\n`);
 }
 
+function isSubpathOf(path: string, parentPath: string) {
+  const relativePath = relative(parentPath, path);
+  return relativePath === "" || (!relativePath.startsWith("..") && !relativePath.startsWith(`..${sep}`));
+}
+
+async function addRootTsconfigReference(repoRootPath: string, destinationPath: string) {
+  const rootTsconfigPath = join(repoRootPath, "tsconfig.json");
+  const tsconfigText = await readFile(rootTsconfigPath, "utf8");
+  const tsconfigJson = JSON.parse(tsconfigText) as {
+    references?: Array<{ path: string }>;
+  };
+
+  if (!Array.isArray(tsconfigJson.references)) {
+    return;
+  }
+
+  const referencePath = `./${relative(repoRootPath, destinationPath).split(sep).join("/")}`;
+  if (tsconfigJson.references.some((reference) => reference.path === referencePath)) {
+    return;
+  }
+
+  tsconfigJson.references.push({ path: referencePath });
+  await writeFile(rootTsconfigPath, `${JSON.stringify(tsconfigJson, null, 2)}\n`);
+}
+
 function getAncestorDirectories(startPath: string) {
   const ancestors: string[] = [];
   let currentPath = dirname(startPath);
@@ -130,7 +155,10 @@ async function resolveLocalTemplateRoot() {
       const templatePackageJson = JSON.parse(packageJsonText) as { name?: string };
 
       if (templatePackageJson.name !== "@cmdless/template") continue;
-      return dirname(templatePackageJsonPath);
+      return {
+        repoRootPath: ancestorPath,
+        templateRootPath: dirname(templatePackageJsonPath),
+      };
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === "ENOENT") {
         continue;
@@ -185,15 +213,19 @@ async function createTemplate(destination: string, name?: string) {
   const destinationPath = resolve(process.cwd(), destination);
   await ensureEmptyDirectory(destinationPath);
 
-  const localTemplateRoot = await resolveLocalTemplateRoot();
-  if (localTemplateRoot) {
-    await copyDirectoryContents(localTemplateRoot, destinationPath);
+  const localTemplate = await resolveLocalTemplateRoot();
+  if (localTemplate) {
+    await copyDirectoryContents(localTemplate.templateRootPath, destinationPath);
   } else {
     await downloadRepositoryTarball(destinationPath);
   }
 
   const packageName = derivePackageName(destinationPath, name);
   await rewriteTemplatePackageJson(destinationPath, packageName);
+
+  if (localTemplate && isSubpathOf(destinationPath, localTemplate.repoRootPath)) {
+    await addRootTsconfigReference(localTemplate.repoRootPath, destinationPath);
+  }
 }
 
 async function runElectronUi(rendererUrl: string) {
