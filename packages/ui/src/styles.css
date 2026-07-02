@@ -1,0 +1,141 @@
+:root {
+  --cmd-background: #f4f0e8;
+  --cmd-surface: rgba(255, 255, 255, 0.84);
+  --cmd-surface-strong: #fffdf8;
+  --cmd-foreground: #211d18;
+  --cmd-muted: #6f675d;
+  --cmd-border: rgba(48, 38, 24, 0.12);
+  --cmd-border-strong: rgba(48, 38, 24, 0.18);
+  --cmd-primary: #1f7a59;
+  --cmd-primary-foreground: #f5fff9;
+  --cmd-secondary: #ece3d6;
+  --cmd-secondary-foreground: #3d3327;
+  --cmd-ghost-hover: rgba(48, 38, 24, 0.06);
+  --cmd-focus: rgba(31, 122, 89, 0.28);
+  --cmd-radius: 18px;
+  --cmd-shadow: 0 18px 50px rgba(30, 25, 19, 0.08);
+}
+
+.cmd-app-shell {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.72), transparent 34%),
+    linear-gradient(180deg, #f6f2ea 0%, var(--cmd-background) 100%);
+  color: var(--cmd-foreground);
+  padding: 32px;
+}
+
+.cmd-app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.cmd-app-section {
+  display: grid;
+  gap: 20px;
+}
+
+.cmd-card {
+  display: grid;
+  gap: 16px;
+  padding: 22px;
+  background: var(--cmd-surface);
+  border: 1px solid var(--cmd-border);
+  border-radius: var(--cmd-radius);
+  box-shadow: var(--cmd-shadow);
+  backdrop-filter: blur(18px);
+}
+
+.cmd-card__header,
+.cmd-card__content,
+.cmd-card__footer {
+  display: grid;
+  gap: 10px;
+}
+
+.cmd-card__title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.cmd-card__description,
+.cmd-field__hint {
+  margin: 0;
+  color: var(--cmd-muted);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.cmd-button {
+  appearance: none;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 0.8rem 1.1rem;
+  font: inherit;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  transition:
+    transform 120ms ease,
+    background-color 120ms ease,
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.cmd-button:hover {
+  transform: translateY(-1px);
+}
+
+.cmd-button:focus-visible,
+.cmd-input:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 4px var(--cmd-focus);
+}
+
+.cmd-button--primary {
+  background: var(--cmd-primary);
+  color: var(--cmd-primary-foreground);
+}
+
+.cmd-button--secondary {
+  background: var(--cmd-secondary);
+  color: var(--cmd-secondary-foreground);
+  border-color: var(--cmd-border);
+}
+
+.cmd-button--ghost {
+  background: transparent;
+  color: var(--cmd-foreground);
+}
+
+.cmd-button--ghost:hover {
+  background: var(--cmd-ghost-hover);
+}
+
+.cmd-field {
+  display: grid;
+  gap: 8px;
+}
+
+.cmd-label {
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.cmd-input {
+  width: 100%;
+  border: 1px solid var(--cmd-border-strong);
+  border-radius: 14px;
+  background: var(--cmd-surface-strong);
+  color: var(--cmd-foreground);
+  padding: 0.85rem 0.95rem;
+  font: inherit;
+}
+
+.cmd-input::placeholder {
+  color: color-mix(in srgb, var(--cmd-muted) 80%, white);
+}

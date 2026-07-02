@@ -1,10 +1,10 @@
 {
-  "name": "@cmdless/template",
+  "name": "mcp-explorer",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "bin": {
-    "template": "./dist/main/bin.js"
+    "mcp-explorer": "./dist/main/bin.js"
   },
   "exports": {
     "./app": {

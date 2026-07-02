@@ -1,11 +1,23 @@
 import { Command } from "commander";
 import { app, BrowserWindow, ipcMain, type IpcMainInvokeEvent } from "electron";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import packageJson from "../../package.json" with { type: "json" };
 import {
   type IpcApi,
   type IpcHandler,
 } from "../shared/index.js";
 import { getOrCreateRendererProcess } from "./renderer-process.js";
+
+function getElectronHostName() {
+  return `cmdless-electron@${packageJson.devDependencies.electron}`;
+}
+
+function configureElectronHostIdentity() {
+  const hostName = getElectronHostName();
+  app.setName(hostName);
+  app.setPath("userData", join(app.getPath("appData"), hostName));
+}
 
 export function handle<K extends keyof IpcApi>(
   channel: K,
@@ -47,6 +59,7 @@ async function createMainWindow(rendererUrl: string) {
 }
 
 export async function runElectronApp(rendererUrl: string) {
+  configureElectronHostIdentity();
   setupElectronIpc();
 
   app.on("window-all-closed", () => {
