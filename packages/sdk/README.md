@@ -6,6 +6,7 @@ It gives an app:
 
 - a protocol-first main-side API
 - a renderer-side client bridge
+- a generic preload-to-main host bridge
 - CLI commands
 - MCP transport
 - an Electron host/runtime layer
@@ -103,13 +104,39 @@ The renderer bridge currently bootstraps by:
 3. creating an MCP client
 4. wrapping that in the typed protocol client
 
+The preload bridge is useful even without connecting to an app protocol. A renderer can call:
+
+```ts
+await cmdless.invoke("process/spawn", {
+  command: "echo",
+  args: ["hello"],
+});
+```
+
+That means the SDK host can already act as a generic Electron shell for arbitrary renderer URLs or built HTML files, with optional Cmdless host capabilities layered on top.
+
+Current SDK-owned host IPC includes:
+
+- `renderer/create`
+- `process/spawn`
+
 ## CLI Behavior
 
 Apps created with the SDK currently expose these built-in commands:
 
+- default `sdk --url <url>` Electron host launch
+- `create`
 - `ui`
 - `mcp`
 - `tool`
+
+`create`:
+
+- scaffolds a new app from `@cmdless/template`
+- accepts `--path <path>`
+- accepts optional `--name <name>`
+- rewrites the generated `package.json`
+- when run inside the local monorepo, also adds a root TypeScript project reference
 
 `ui`:
 
@@ -144,6 +171,8 @@ At startup, the SDK bin:
 2. ensures that runtime exists locally
 3. launches the shared Electron main host
 
+The Electron host currently keys its own app identity and `userData` directory off the configured Electron runtime version, using a host name like `cmdless-electron@{version}`.
+
 ## Development Notes
 
 Current dev behavior:
@@ -151,12 +180,14 @@ Current dev behavior:
 - renderer React files are handled by the Vite dev server
 - TypeScript app main entries can be executed through `tsx`
 - Electron preload is bundled separately into `dist/preload/index.cjs`
+- the host can load arbitrary renderer URLs, not only Cmdless-connected apps
 
 Current limitations:
 
 - app main TypeScript entries are executed, but not yet fully watched/restarted
 - preload is a special build artifact and should be treated as such
 - CLI ergonomics are still more protocol shell than polished end-user CLI
+- Vite dev orchestration still lives in app-local scripts rather than a dedicated SDK helper package
 
 ## Template
 

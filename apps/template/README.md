@@ -6,6 +6,7 @@ It demonstrates:
 
 - a main-side Cmdless app entry
 - a Vite React renderer
+- `@cmdless/ui` consumption from a shared package
 - the `cmdless` package config block
 - local development against the shared Electron host
 
@@ -49,6 +50,7 @@ Today, the template dev loop is best for renderer work:
 
 - editing `src/renderer/*` should update through Vite in the Electron window
 - the app main TS entry can be executed through `tsx` when launched in dev mode
+- the renderer can use `window.cmdless` host capabilities even before connecting to an app protocol
 
 Still evolving:
 

@@ -26,12 +26,18 @@ From that, the platform can provide:
 - an Electron host that downloads and manages its own Electron runtime
 - a preload bridge that lets the renderer call the same protocol
 
+The Electron host is also broader than just "Cmdless app UI". Today it can already load an arbitrary renderer URL or built HTML file and expose the `window.cmdless` preload bridge, even if the renderer never connects to an app protocol.
+
 ## App Modes
 
 There are two useful modes today:
 
 - `CLI + MCP`
 - `CLI + MCP + UI`
+
+There is also a more host-oriented mode:
+
+- generic Electron window for a renderer URL or file, with optional `window.cmdless` access
 
 That means the same app package can be useful even if you never open the Electron shell.
 
@@ -75,6 +81,14 @@ The current happy path is:
 3. Build the renderer with Vite.
 4. Let the SDK handle Electron runtime setup and preload wiring.
 
+The SDK also includes a starter scaffold command:
+
+```bash
+sdk create --path ./apps/my-app
+```
+
+When run inside this monorepo, it copies the local template source and updates the generated `package.json`. Outside the monorepo, it falls back to the repository template source.
+
 For a concrete example, see:
 
 - [packages/sdk/README.md](/Users/yakisoba/Documents/GitHub/platform/packages/sdk/README.md)
@@ -89,6 +103,7 @@ Current rough edges include:
 - prettier generated `--help` output from protocol schemas
 - better main-process dev watch/restart behavior
 - cleaner CLI/runtime layering inside the SDK
+- continued separation between SDK host capabilities and app protocol capabilities
 
 ## Packages
 
