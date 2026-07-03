@@ -1,4 +1,5 @@
 export * from "./components/app-shell.js";
+export * from "./components/badge.js";
 export * from "./components/button.js";
 export * from "./components/card.js";
 export * from "./components/field.js";

@@ -30,13 +30,29 @@ async function startStdioMcpServer(server: ReturnType<typeof createMcpServer>) {
   await closed;
 }
 
+function setLoopbackCorsHeaders(response: ServerResponse) {
+  response.setHeader("Access-Control-Allow-Origin", "*");
+  response.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  response.setHeader("Access-Control-Allow-Headers", "content-type, mcp-session-id, mcp-protocol-version");
+  response.setHeader("Access-Control-Expose-Headers", "mcp-session-id");
+}
+
 async function handleStreamableHttpRequest(
   request: IncomingMessage,
   response: ServerResponse,
   transport: StreamableHTTPServerTransport,
+  parsedBody?: unknown,
 ) {
+  setLoopbackCorsHeaders(response);
+
+  if (request.method === "OPTIONS") {
+    response.writeHead(204);
+    response.end();
+    return;
+  }
+
   if (request.method === "POST") {
-    const body = await readJsonBody(request);
+    const body = parsedBody ?? await readJsonBody(request);
     const sessionId = request.headers["mcp-session-id"];
 
     if (!sessionId && body !== undefined && !isInitializeRequest(body)) {
@@ -61,22 +77,76 @@ async function handleStreamableHttpRequest(
     return;
   }
 
-  response.writeHead(405, { allow: "GET, POST" });
+  response.writeHead(405, { allow: "GET, POST, OPTIONS" });
   response.end();
 }
 
-async function startStreamableHttpMcpServer(server: ReturnType<typeof createMcpServer>) {
-  const transport = new StreamableHTTPServerTransport({
-    sessionIdGenerator: () => randomUUID(),
-  });
-
-  await server.connect(transport);
+async function startStreamableHttpMcpServer(createMcpServerInstance: () => ReturnType<typeof createMcpServer>) {
+  const transports = new Map<string, StreamableHTTPServerTransport>();
 
   const httpServer = createServer(async (request, response) => {
     try {
       if (!request.url || new URL(request.url, "http://127.0.0.1").pathname !== "/mcp") {
+        setLoopbackCorsHeaders(response);
         response.writeHead(404);
         response.end();
+        return;
+      }
+
+      const sessionIdHeader = request.headers["mcp-session-id"];
+      const sessionId = Array.isArray(sessionIdHeader) ? sessionIdHeader[0] : sessionIdHeader;
+
+      let transport = sessionId ? transports.get(sessionId) : undefined;
+
+      if (!transport && request.method === "POST") {
+        const body = await readJsonBody(request);
+
+        if (!sessionId && body !== undefined && isInitializeRequest(body)) {
+          const initializedTransport = new StreamableHTTPServerTransport({
+            sessionIdGenerator: () => randomUUID(),
+            onsessioninitialized: (initializedSessionId) => {
+              transports.set(initializedSessionId, initializedTransport);
+            },
+          });
+
+          initializedTransport.onclose = () => {
+            const currentSessionId = initializedTransport.sessionId;
+            if (currentSessionId) {
+              transports.delete(currentSessionId);
+            }
+          };
+
+          await createMcpServerInstance().connect(initializedTransport);
+          await handleStreamableHttpRequest(request, response, initializedTransport, body);
+          return;
+        }
+
+        if (!transport) {
+          setLoopbackCorsHeaders(response);
+          response.writeHead(400, { "content-type": "application/json" });
+          response.end(JSON.stringify({
+            jsonrpc: "2.0",
+            error: {
+              code: -32000,
+              message: "Bad Request: No valid session ID provided",
+            },
+            id: null,
+          }));
+          return;
+        }
+      }
+
+      if (!transport) {
+        setLoopbackCorsHeaders(response);
+        response.writeHead(400, { "content-type": "application/json" });
+        response.end(JSON.stringify({
+          jsonrpc: "2.0",
+          error: {
+            code: -32000,
+            message: "Bad Request: No valid session ID provided",
+          },
+          id: null,
+        }));
         return;
       }
 
@@ -84,6 +154,7 @@ async function startStreamableHttpMcpServer(server: ReturnType<typeof createMcpS
     } catch (error) {
       console.error("Error handling MCP request:", error);
       if (!response.headersSent) {
+        setLoopbackCorsHeaders(response);
         response.writeHead(500, { "content-type": "application/json" });
         response.end(JSON.stringify({
           jsonrpc: "2.0",
@@ -98,7 +169,9 @@ async function startStreamableHttpMcpServer(server: ReturnType<typeof createMcpS
   });
 
   const close = async () => {
-    await server.close().catch(() => { });
+    await Promise.allSettled(
+      Array.from(transports.values(), (transport) => transport.close()),
+    );
     httpServer.close();
   };
 
@@ -140,6 +213,7 @@ export function createCli<TProtocol extends ProtocolDefinition>(
   config: CmdlessConfig,
   protocol: TProtocol,
 ) {
+  const createServer = () => createMcpServer(protocol);
   const program = new Command('app');
 
   program.command("ui").description("Open the desktop UI for this application")
@@ -166,15 +240,13 @@ export function createCli<TProtocol extends ProtocolDefinition>(
 
   program.command("mcp").description("Start MCP over stdio, or websocket if stdio[3] is ipc")
     .action(async () => {
-      const server = createMcpServer(protocol);
-
       if (process.send) {
-        const url = await startStreamableHttpMcpServer(server);
+        const url = await startStreamableHttpMcpServer(createServer);
         process.send({ type: "cmdless:mcp-url", url });
         return;
       }
 
-      await startStdioMcpServer(server);
+      await startStdioMcpServer(createServer());
     });
 
   program.command("tool").description("Invoke a protocol command as a tool")

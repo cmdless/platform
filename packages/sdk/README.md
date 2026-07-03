@@ -51,10 +51,12 @@ Current core shape:
 
 ```ts
 import { createApp } from "@cmdless/sdk/main";
-import { createConfig, createProtocol } from "@cmdless/sdk/shared";
+import { createConfig } from "@cmdless/sdk/shared";
 
 const config = createConfig({
   name: "@example/app",
+  sdk: "0.0.2",
+  version: "1.0.0",
   main: "./dist/main/bin.js",
   mainDev: "./src/main/bin.ts",
   renderer: "./dist/renderer/index.html",
@@ -62,16 +64,16 @@ const config = createConfig({
   url: import.meta.url,
 });
 
-const protocol = createProtocol(({ method, z }) => ({
+const app = createApp(config, ({ method, runtime, z }) => ({
   ping: method({
     output: z.object({ ok: z.boolean() }),
     async handler() {
-      return { ok: true };
+      return {
+        ok: runtime.config.name === "@example/app",
+      };
     },
   }),
 }));
-
-const app = createApp(config, protocol);
 
 app.run();
 ```

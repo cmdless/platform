@@ -8,7 +8,7 @@ import {
   type IpcHandler,
 } from "../shared/index.js";
 import { spawnProcess } from "./process.js";
-import { getOrCreateRendererProcess } from "./renderer-process.js";
+import { callRendererTool, ensureRendererClient } from "./renderer-clients.js";
 
 function getElectronHostName() {
   return `cmdless-electron@${packageJson.devDependencies.electron}`;
@@ -28,8 +28,38 @@ export function handle<K extends keyof IpcApi>(
 }
 
 export function setupElectronIpc() {
-  handle("renderer/create", async (_, request) => {
-    return await getOrCreateRendererProcess(request.config);
+  handle("renderer/create", async (event, request) => {
+    const window = BrowserWindow.fromWebContents(event.sender);
+    if (!window) {
+      throw new Error("Could not resolve BrowserWindow for renderer/create.");
+    }
+
+    await ensureRendererClient(window, request.config);
+    return { ok: true };
+  });
+
+  handle("tools/call", async (event, request) => {
+    const window = BrowserWindow.fromWebContents(event.sender);
+    if (!window) {
+      throw new Error("Could not resolve BrowserWindow for tools/call.");
+    }
+
+    return {
+      result: await callRendererTool(window, request.config, request.method, request.params),
+    };
+  });
+
+  handle("version", async () => {
+    return {
+      version: packageJson.version,
+    };
+  });
+
+  handle("system/info", async () => {
+    return {
+      platform: process.platform,
+      arch: process.arch,
+    };
   });
 
   handle("process/spawn", async (_, request) => {

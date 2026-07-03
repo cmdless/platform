@@ -1,7 +1,4 @@
 import { ipcRenderer } from "electron";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
-import { CallToolResultSchema } from "@modelcontextprotocol/sdk/types.js";
 import {
   createClient,
   type CmdlessConfig,
@@ -18,6 +15,10 @@ export function invokeIpc<K extends keyof IpcApi>(
   return ipcRenderer.invoke(channel, request);
 }
 
+export function getSystemInfo() {
+  return invokeIpc("system/info", {});
+}
+
 function resolveRendererConfig(config: CmdlessConfig): CmdlessConfig {
   const isDev = new URL(config.url).pathname.endsWith(".ts");
 
@@ -27,39 +28,19 @@ function resolveRendererConfig(config: CmdlessConfig): CmdlessConfig {
   };
 }
 
-function parseToolResult<T>(method: string, result: typeof CallToolResultSchema._output): T {
-  if (result.isError) {
-    const message = result.content
-      .filter((item) => item.type === "text")
-      .map((item) => item.text)
-      .join("\n")
-      .trim();
-
-    throw new Error(message || `Tool "${method}" failed.`);
-  }
-
-  const item = result.content[0];
-  if (!item) return undefined as T;
-  if (item.type !== "text") {
-    throw new Error(`Tool "${method}" returned unsupported non-text content.`);
-  }
-  if (!item.text) return undefined as T;
-
-  return JSON.parse(item.text) as T;
-}
-
 export async function createRendererClient<TProtocol extends ProtocolDefinition>(
   config: CmdlessConfig,
 ) {
   const resolvedConfig = resolveRendererConfig(config);
-  const { url } = await invokeIpc("renderer/create", { config: resolvedConfig });
-  const client = new Client({
-    name: `${resolvedConfig.name}-renderer`,
-    version: "1.0.0",
-  });
+  const runtimeVersion = await invokeIpc("version", {});
 
-  const transport = new StreamableHTTPClientTransport(new URL(url));
-  await client.connect(transport);
+  if (runtimeVersion.version !== resolvedConfig.sdk) {
+    throw new Error(
+      `Cmdless sdk version mismatch: renderer expects ${resolvedConfig.sdk}, preload provides ${runtimeVersion.version}.`,
+    );
+  }
+
+  await invokeIpc("renderer/create", { config: resolvedConfig });
 
   return createClient<TProtocol>(resolvedConfig, async <
     K extends keyof TProtocol & string
@@ -69,17 +50,12 @@ export async function createRendererClient<TProtocol extends ProtocolDefinition>
       ? []
       : [params: InputOf<TProtocol[K]>]
   ): Promise<OutputOf<TProtocol[K]>> => {
-    const result = await client.request(
-      {
-        method: "tools/call",
-        params: {
-          name: method,
-          arguments: args[0],
-        },
-      },
-      CallToolResultSchema,
-    );
+    const response = await invokeIpc("tools/call", {
+      config: resolvedConfig,
+      method,
+      params: args[0],
+    });
 
-    return parseToolResult<OutputOf<TProtocol[K]>>(method, result);
+    return response.result as OutputOf<TProtocol[K]>;
   });
 }

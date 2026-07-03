@@ -45,6 +45,8 @@ export type OutputOf<TMethod> =
 
 export type CmdlessConfig = {
   name: string;
+  version: string;
+  sdk: string;
   main: string;
   mainDev: string;
   renderer: string;

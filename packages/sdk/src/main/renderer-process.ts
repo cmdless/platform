@@ -1,12 +1,21 @@
-import { fork, spawn } from "node:child_process";
 import { createRequire } from "node:module";
-import { fileURLToPath } from "node:url";
-import { type CmdlessConfig, type CreateRendererResponse } from "../shared/index.js";
+import { resolve } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import type { CmdlessConfig } from "../shared/index.js";
 
-const rendererProcesses = new Map<string, Promise<CreateRendererResponse>>();
+function getNodeExecPath() {
+  return process.env.CMDLESS_NODE_EXEC_PATH || process.execPath;
+}
 
-function getRendererProcessKey(config: CmdlessConfig) {
-  return new URL(config.main, config.root).href;
+function getAppRootUrl(config: CmdlessConfig) {
+  const rootUrl = new URL(config.root);
+
+  if (rootUrl.protocol === "file:") {
+    return rootUrl;
+  }
+
+  return pathToFileURL(`${resolve(process.cwd())}/`);
 }
 
 function createTsxLaunchError(mainPath: string) {
@@ -16,95 +25,45 @@ function createTsxLaunchError(mainPath: string) {
   );
 }
 
-function spawnRendererProcess(config: CmdlessConfig) {
-  const mainUrl = new URL(config.main, config.root);
+export function createRendererTransport(config: CmdlessConfig) {
+  const appRootUrl = getAppRootUrl(config);
+  const mainUrl = new URL(config.main, appRootUrl);
   const mainPath = fileURLToPath(mainUrl);
-  const appRootPath = fileURLToPath(new URL(config.root));
+  const appRootPath = fileURLToPath(appRootUrl);
+  const nodeExecPath = getNodeExecPath();
 
   if (mainPath.endsWith(".ts")) {
+    let tsxLoaderPath: string;
+
     try {
-      const requireFromRoot = createRequire(new URL("./package.json", config.root));
-      requireFromRoot.resolve("tsx");
+      const requireFromRoot = createRequire(new URL("./package.json", appRootUrl));
+      tsxLoaderPath = requireFromRoot.resolve("tsx");
     } catch {
       throw createTsxLaunchError(mainPath);
     }
 
-    return spawn(process.execPath, [
-      "--import",
-      "tsx",
-      mainPath,
-      "mcp",
-    ], {
+    return new StdioClientTransport({
+      command: nodeExecPath,
+      args: [
+        "--import",
+        tsxLoaderPath,
+        mainPath,
+        "mcp",
+      ],
       cwd: appRootPath,
-      stdio: ["ignore", "inherit", "inherit", "ipc"],
+      env: process.env as Record<string, string>,
+      stderr: "inherit",
     });
   }
 
-  return fork(mainPath, ["mcp"], {
+  return new StdioClientTransport({
+    command: nodeExecPath,
+    args: [
+      mainPath,
+      "mcp",
+    ],
     cwd: appRootPath,
-    stdio: ["ignore", "inherit", "inherit", "ipc"],
+    env: process.env as Record<string, string>,
+    stderr: "inherit",
   });
-}
-
-async function createRendererProcess(config: CmdlessConfig): Promise<CreateRendererResponse> {
-  const child = spawnRendererProcess(config);
-
-  return await new Promise<CreateRendererResponse>((resolve, reject) => {
-    let settled = false;
-
-    const finish = (callback: () => void) => {
-      if (settled) return;
-      settled = true;
-      child.removeListener("message", onMessage);
-      child.removeListener("error", onError);
-      child.removeListener("exit", onExit);
-      callback();
-    };
-
-    const onMessage = (message: unknown) => {
-      if (
-        typeof message !== "object" ||
-        message === null ||
-        !("type" in message) ||
-        !("url" in message) ||
-        message.type !== "cmdless:mcp-url" ||
-        typeof message.url !== "string"
-      ) {
-        return;
-      }
-
-      const { url } = message;
-      finish(() => resolve({ url }));
-    };
-
-    const onError = (error: Error) => {
-      finish(() => reject(error));
-    };
-
-    const onExit = (code: number | null, signal: NodeJS.Signals | null) => {
-      finish(() => {
-        reject(new Error(
-          `Renderer MCP process exited before reporting a websocket URL (code: ${code ?? "null"}, signal: ${signal ?? "null"}).`
-        ));
-      });
-    };
-
-    child.on("message", onMessage);
-    child.on("error", onError);
-    child.on("exit", onExit);
-  });
-}
-
-export function getOrCreateRendererProcess(config: CmdlessConfig) {
-  const key = getRendererProcessKey(config);
-  const existing = rendererProcesses.get(key);
-  if (existing) return existing;
-
-  const created = createRendererProcess(config).catch((error) => {
-    rendererProcesses.delete(key);
-    throw error;
-  });
-
-  rendererProcesses.set(key, created);
-  return created;
 }

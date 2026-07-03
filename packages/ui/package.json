@@ -3,6 +3,8 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "description": "Shared UI framework for Cmdless apps.",
   "files": [
     "dist"
@@ -15,7 +17,7 @@
     "./styles.css": "./dist/styles.css"
   },
   "scripts": {
-    "prebuild": "rimraf dist",
+    "prebuild": "rimraf dist node_modules/.tmp",
     "build": "tsc -b && node scripts/copy-css.mjs"
   },
   "peerDependencies": {
@@ -24,6 +26,8 @@
   },
   "devDependencies": {
     "@types/react": "^19.2.17",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
     "typescript": "~6.0.2"
   }
 }

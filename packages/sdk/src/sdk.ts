@@ -235,7 +235,10 @@ async function runElectronUi(rendererUrl: string) {
 
   const child = spawn(electronBinaryPath, [electronMainPath, "--url", rendererUrl], {
     stdio: "inherit",
-    env: process.env,
+    env: {
+      ...process.env,
+      CMDLESS_NODE_EXEC_PATH: process.execPath,
+    },
   });
 
   process.on("SIGINT", () => {

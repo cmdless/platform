@@ -7,12 +7,13 @@ import {
 export async function spawnProcess(
   request: ProcessSpawnRequest,
 ): Promise<ProcessSpawnResponse> {
+  const hasStdin = !!request.stdin?.length;
   const child = spawn(request.command, request.args ?? [], {
     env: {
       ...process.env,
       ...request.env,
     },
-    stdio: ["ignore", "pipe", "pipe"],
+    stdio: [hasStdin ? "pipe" : "ignore", "pipe", "pipe"],
   });
 
   const stdoutChunks: Uint8Array[] = [];
@@ -26,6 +27,10 @@ export async function spawnProcess(
     stderrChunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
   });
 
+  if (request.stdin?.length) {
+    child.stdin?.end(Buffer.from(request.stdin));
+  }
+
   return await new Promise<ProcessSpawnResponse>((resolve, reject) => {
     child.once("error", reject);
     child.once("exit", (code, signal) => {
@@ -35,8 +40,8 @@ export async function spawnProcess(
       }
 
       resolve({
-        stdout: Buffer.concat(stdoutChunks).toString("utf8"),
-        stderr: Buffer.concat(stderrChunks).toString("utf8"),
+        stdout: Buffer.concat(stdoutChunks),
+        stderr: Buffer.concat(stderrChunks),
         exit: code ?? 0,
       });
     });

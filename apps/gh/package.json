@@ -21,6 +21,9 @@
     "mainDev": "./src/main/bin.ts",
     "renderer": "./dist/renderer/index.html"
   },
+  "scarfSettings": {
+    "enabled": false
+  },
   "scripts": {
     "dev": "npm run build && node scripts/dev.mjs",
     "prebuild": "rimraf dist node_modules/.tmp",
@@ -29,12 +32,16 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@cmdless/sdk": "0.0.2",
     "@cmdless/ui": "*",
+    "octokit": "^5.0.5",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
-    "@cmdless/sdk": "*"
+    "zustand": "^5.0.14",
+    "swagger-ui-react": "5.32.8"
   },
   "devDependencies": {
+    "@types/swagger-ui-react": "5.18.0",
     "@eslint/js": "^10.0.1",
     "@types/node": "^24.13.2",
     "@types/react": "^19.2.17",
@@ -46,6 +53,7 @@
     "globals": "^17.6.0",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.61.0",
+    "tsx": "^4.8.1",
     "vite": "^8.1.0"
   }
 }
